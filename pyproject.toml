@@ -1,0 +1,14 @@
+[build-system]
+build-backend = 'mesonpy'
+requires = ['meson-python']
+
+[project]
+name = 'meson-test'
+version = '0.0.1'
+description = 'A test project for meson-python'
+#license = {test = "MIT"}
+authors = [
+    {name = 'Oscar Benjamin', email = 'oscar.j.benjamin@gmail.com'},
+]
+#maintainers = ['Oscar Benjamin']
+requires-python = '>=3.8'
