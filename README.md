@@ -66,16 +66,17 @@ If we `cd` into the `build` directory we can import and use the extension
 module and call `gmp` functions:
 ```console
 $ cd build/
-oscar@nuc:~/current/active/tmp/mesontest/build$ python
+$ python
 Python 3.11.3 (main, Apr  5 2023, 23:03:48) [GCC 11.3.0] on linux
 Type "help", "copyright", "credits" or "license" for more information.
 >>> import meson_test
->>> meson_test.pow1000(2)
+>>> import meson_test._meson_test
+>>> meson_test._meson_test.pow1000(2)
 "b'10715086071862673209484250490600018105614048117055336074437503883703510511249361224931983788156958581275946729175531468251871452856923140435984577574698574803934567774824230985421074605062371141877954182153046474983581941267398767559165543946077062914571196477686542167660429831652624386837205668069376'"
 >>> 2**1000
 10715086071862673209484250490600018105614048117055336074437503883703510511249361224931983788156958581275946729175531468251871452856923140435984577574698574803934567774824230985421074605062371141877954182153046474983581941267398767559165543946077062914571196477686542167660429831652624386837205668069376
 ```
-So everything is built correctly and seems to work.
+So everything built and seems to work correctly.
 
 We can also build a wheel when the system has GMP installed:
 ```console
@@ -92,7 +93,7 @@ $ python -m build
 Run-time dependency gmp found: YES 6.2.1
 ...
 Copying files to wheel...
-[0/0] meson_test.cpython-311-x86_64-linux-gnu.soo                                                
+[0/0] meson_test.cpython-311-x86_64-linux-gnu.soo
 Successfully built meson_test-0.0.1.tar.gz and meson_test-0.0.1-cp311-cp311-linux_x86_64.whl
 ```
 The wheel can be installed and the extension module works with the system GMP
@@ -124,40 +125,56 @@ Without build isolation though I can patch mesonpy with this diff:
 --- __init__.py.backup	2023-04-23 11:50:55.660441459 +0100
 +++ __init__.py	2023-04-23 11:51:03.836722723 +0100
 @@ -160,7 +160,7 @@ def _map_to_wheel(sources: Dict[str, Dic
- 
+
              path = _INSTALLATION_PATH_MAP.get(anchor)
              if path is None:
 -                raise BuildError(f'Could not map installation path to an equivalent wheel directory: {str(destination)!r}')
 +                continue
- 
+
              if path == 'purelib' or path == 'platlib':
                  package = destination.parts[1]
 
 ```
 Now it builds with
 ```console
-$ python -c 'import mesonpy; mesonpy.build_wheel(".")'
+$ python -c 'import mesonpy; mesonpy.build_wheel("dist")'
 ...
 Copying files to wheel...
-[0/0] meson_test.cpython-311-x86_64-linux-gnu.soo
+ [0/1] meson_test/_meson_test.cpython-311-x86_64-linux-gnu.so
+ [1/1] meson_test/__init__.pyy
 ```
-The resulting wheel does not contain libgmp.so though:
+The resulting wheel does not contain libgmp.so:
 ```console
-$ unzip meson_test-0.0.1-cp311-cp311-linux_x86_64.whl 
+$ cd dist
+$ unzip meson_test-0.0.1-cp311-cp311-linux_x86_64.whl
 Archive:  meson_test-0.0.1-cp311-cp311-linux_x86_64.whl
- extracting: meson_test-0.0.1.dist-info/METADATA  
- extracting: meson_test-0.0.1.dist-info/WHEEL  
- extracting: meson_test.cpython-311-x86_64-linux-gnu.so  
- extracting: meson_test-0.0.1.dist-info/RECORD  
+ extracting: meson_test-0.0.1.dist-info/METADATA
+ extracting: meson_test-0.0.1.dist-info/WHEEL
+ extracting: meson_test/_meson_test.cpython-311-x86_64-linux-gnu.so
+ extracting: meson_test/__init__.py
+ extracting: meson_test-0.0.1.dist-info/RECORD
 $ tree
 .
+├── meson_test
+│   ├── __init__.py
+│   └── _meson_test.cpython-311-x86_64-linux-gnu.so
 ├── meson_test-0.0.1-cp311-cp311-linux_x86_64.whl
-├── meson_test-0.0.1.dist-info
-│   ├── METADATA
-│   ├── RECORD
-│   └── WHEEL
-└── meson_test.cpython-311-x86_64-linux-gnu.so
+└── meson_test-0.0.1.dist-info
+    ├── METADATA
+    ├── RECORD
+    └── WHEEL
 
-1 directory, 5 files
+2 directories, 6 files
 ```
-
+After installing it seems to work though:
+```python
+$ python
+Python 3.11.3 (main, Apr  5 2023, 23:03:48) [GCC 11.3.0] on linux
+Type "help", "copyright", "credits" or "license" for more information.
+>>> import meson_test
+>>> meson_test.pow1000
+<built-in function pow1000>
+>>> meson_test.pow1000(2)
+"b'10715086071862673209484250490600018105614048117055336074437503883703510511249361224931983788156958581275946729175531468251871452856923140435984577574698574803934567774824230985421074605062371141877954182153046474983581941267398767559165543946077062914571196477686542167660429831652624386837205668069376'"
+```
+I'm not sure why that works. Maybe it linked GMP statically?

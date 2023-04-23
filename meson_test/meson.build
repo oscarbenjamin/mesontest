@@ -1,4 +1,8 @@
-gmp = dependency('gmp', version: '>= 6.2.1', fallback: ['gmp', 'gmp_dep'])
+gmp = dependency(
+  'gmp',
+  version: '>= 6.2.1',
+  fallback: ['gmp', 'gmp_dep'],
+)
 
 # py = import('python').find_installation(pure: false)
 
